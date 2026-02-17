@@ -18,13 +18,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: python
-
-      - name: Add CodeQL CLI to PATH
-        run: echo "${CODEQL_DIST}" >> "$GITHUB_PATH"
+      - name: Install CodeQL CLI
+        run: |
+          gh extension install github/gh-codeql
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set pack version from tag
         run: |
@@ -35,6 +33,6 @@ jobs:
 
       - name: Publish CodeQL pack
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | codeql pack publish \
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh codeql pack publish \
             --github-auth-stdin \
             .github/codeql/extensions/codeql-db-python
