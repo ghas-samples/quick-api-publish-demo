@@ -37,13 +37,6 @@ model-editor-demo/
 │   ├── main.py                            App entry point & route wiring
 │   └── views.py                           ★ 9 intentional vulnerabilities ★
 │
-├── .github/codeql/extensions/
-│   └── model-editor-demo-python/
-│       ├── codeql-pack.yml                Model pack config
-│       └── models/
-│           ├── quickapi.model.yml                       Starter (1 example model)
-│           └── quickapi-complete-reference.model.yml    ★ Answer key ★
-│
 └── README.md                              ← You are here
 ```
 
