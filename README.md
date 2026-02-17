@@ -61,7 +61,7 @@ Before opening VS Code, make sure the audience understands these three ideas:
 ### Pre-work: Build the CodeQL database
 
 ```bash
-cd /path/to/model-editor-demo
+cd /path/to/quick-api
 codeql database create codeql-db --language=python --source-root=.
 ```
 
