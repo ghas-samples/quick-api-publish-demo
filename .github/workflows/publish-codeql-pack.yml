@@ -36,3 +36,5 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | gh codeql pack publish \
             --github-auth-stdin \
             .github/codeql/extensions/codeql-db-python
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

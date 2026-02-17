@@ -38,7 +38,12 @@ extensions:
       - ["quickapi.utils.DataTransformer","Member[to_json]","Argument[0,data:]","ReturnValue","taint"]
       - ["quickapi.utils.DataTransformer","Member[from_json]","Argument[0,json_str:]","ReturnValue","taint"]
       - ["quickapi.utils.DataTransformer","Member[format_string]","Argument[0,template:]","ReturnValue","taint"]
+      - ["quickapi.utils.DataTransformer","Member[format_string]","Argument[1..]","ReturnValue","taint"]
       - ["quickapi.utils.DataTransformer","Member[join_strings]","Argument[0,parts:]","ReturnValue","taint"]
+      - ["quickapi.database.QueryBuilder","Member[select]","Argument[self]","ReturnValue","taint"]
+      - ["quickapi.database.QueryBuilder","Member[where_raw]","Argument[0,condition:]","ReturnValue","taint"]
+      - ["quickapi.database.QueryBuilder","Member[where_raw]","Argument[self]","ReturnValue","taint"]
+      - ["quickapi.database.QueryBuilder","Member[build]","Argument[self]","ReturnValue","taint"]
 
   - addsTo:
       pack: codeql/python-all
