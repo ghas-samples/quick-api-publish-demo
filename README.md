@@ -17,7 +17,7 @@ SOURCE ──────────► SUMMARY ──────────�
 
 CodeQL ships with models for hundreds of popular frameworks — Flask, Django, SQLAlchemy, etc. **But when your code uses a framework CodeQL has never seen, it can't trace anything.** No model = no findings.
 
-This demo uses a **fictional framework called "QuickAPI"** (in the `quickapi/` folder) to simulate that exact scenario. The app has 7 obvious security bugs, but CodeQL finds **zero** of them out of the box.
+This demo uses a **fictional framework called "QuickAPI"** (in the `quickapi/` folder) to simulate that exact scenario. The app has 6 security bugs, but CodeQL finds **zero** of them out of the box.
 
 ---
 
@@ -35,7 +35,7 @@ model-editor-demo/
 │
 ├── app/
 │   ├── main.py                            App entry point & route wiring
-│   └── views.py                           ★ 7 intentional vulnerabilities ★
+│   └── views.py                           ★ 5 intentional + 1 bonus vulnerability ★
 │
 └── README.md                              ← You are here
 ```
@@ -200,7 +200,7 @@ codeql database analyze codeql-db \
   --rerun
 ```
 
-**Result: All 7 vulnerabilities are now detected!**
+**Result: All 6 vulnerabilities are now detected!**
 
 
 ---
@@ -234,25 +234,21 @@ If time allows, let the audience model the remaining APIs themselves. Here's the
 | `SystemHelper.run_command()` | `Argument[0,cmd:]` | `command-injection` |
 | `SystemHelper.ping_host()` | `Argument[0,hostname:]` | `command-injection` |
 | `SystemHelper.read_file()` | `Argument[0,filepath:]` | `path-injection` |
-| `SystemHelper.write_log()` | `Argument[1,message:]` ⚠️ | `log-injection` |
-| `TemplateEngine.render_string()` | `Argument[0,template_str:]` | `html-injection` |
 | `Response.redirect()` | `Argument[0,url:]` | `url-redirection` |
 
-> ⚠️ Note: `write_log(logfile, message)` — the sink is the **second** argument (the message), not the first.
->
 > 💡 Note: The `Argument[0,sql:]` syntax includes both the positional index and the Python parameter name. The model editor generates this format automatically.
 
 #### All summaries (Model Type: Flow summary, Kind: taint)
 
-| Method | Input | Output | Notes |
-|--------|-------|--------|-------|
-| `Sanitizer.strip_tags()` | `Argument[0,html:]` | `ReturnValue` | |
-| `Sanitizer.truncate()` | `Argument[0,value:]` | `ReturnValue` | |
-| `Sanitizer.to_lowercase()` | `Argument[0,value:]` | `ReturnValue` | |
-| `DataTransformer.to_json()` | `Argument[0,data:]` | `ReturnValue` | |
-| `DataTransformer.from_json()` | `Argument[0,json_str:]` | `ReturnValue` | |
-| `DataTransformer.format_string()` | `Argument[0,template:]` | `ReturnValue` | |
-| `DataTransformer.join_strings()` | `Argument[0,parts:]` | `ReturnValue` | |
+| Method | Input | Output |
+|--------|-------|--------|
+| `Sanitizer.strip_tags()` | `Argument[0,html:]` | `ReturnValue` |
+| `Sanitizer.truncate()` | `Argument[0,value:]` | `ReturnValue` |
+| `Sanitizer.to_lowercase()` | `Argument[0,value:]` | `ReturnValue` |
+| `DataTransformer.to_json()` | `Argument[0,data:]` | `ReturnValue` |
+| `DataTransformer.from_json()` | `Argument[0,json_str:]` | `ReturnValue` |
+| `DataTransformer.format_string()` | `Argument[0,template:]` | `ReturnValue` |
+| `DataTransformer.join_strings()` | `Argument[0,parts:]` | `ReturnValue` |
 
 #### Answer key
 
@@ -280,26 +276,25 @@ codeql database analyze codeql-db \
   --output=after-modeling-results.sarif \
   --additional-packs=.github/codeql/extensions/ \
   --model-packs=pack/codeql-db-python \
-  -- python-security-and-quality
+
 ```
 
-**Result: All 7 vulnerabilities are now detected!**
+**Result: All 6 vulnerabilities are now detected!**
 
 ---
 
-## All 7 vulnerabilities
+## All 6 vulnerabilities
 
 After modeling everything, CodeQL should detect all of these:
 
 | # | Vulnerability | Taint path | What needs to be modeled |
 |---|--------------|-----------|------------------------|
 | 1 | **SQL Injection** | `get_query_param()` → f-string → `execute_query()` | source + sink |
-| 2 | **Reflected XSS** | `get_query_param()` → `render_string()` | source + sink |
-| 3 | **Command Injection** | `get_query_param()` → `ping_host()` | source + sink |
-| 4 | **Path Traversal** | `get_query_param()` → `read_file()` | source + sink |
-| 5 | **SQL Injection (sanitizer bypass)** | `get_json_body()` → `strip_tags()` → `execute_update()` | source + sink + summary |
-| 6 | **SQL Injection (JWT claims)** | `get_header()` → `decode_token()` → `execute_query()` | source + source + sink |
-| 7 | **Log Injection** | `get_query_param()` → `write_log()` | source + sink |
+| 2 | **Command Injection** | `get_query_param()` → `ping_host()` | source + sink |
+| 3 | **Path Traversal** | `get_query_param()` → `read_file()` | source + sink |
+| 4 | **SQL Injection (sanitizer bypass)** | `get_json_body()` → `strip_tags()` → `execute_update()` | source + sink + summary |
+| 5 | **SQL Injection (JWT claims)** | `get_header()` → `decode_token()` → `execute_query()` | source + source + sink |
+| 6 | **Polynomial ReDoS** | `get_json_body()` → `strip_tags()` regex | source + summary (CodeQL detects the vulnerable regex automatically once taint reaches it) |
 
 ---
 

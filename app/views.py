@@ -4,20 +4,20 @@ View handlers for the demo application.
 Each function here contains an INTENTIONAL VULNERABILITY that CodeQL
 should detect — but only AFTER the QuickAPI framework has been modeled.
 
-There are 7 intentional vulnerabilities in this file.
+There are 5 intentional vulnerabilities in this file, plus 1 bonus
+finding (Polynomial ReDoS) that CodeQL detects automatically once
+the source models are in place.
 
 Without models, CodeQL does not know that:
   - Request methods return user-controlled data (sources)
-  - Database/template/system methods consume data unsafely (sinks)
+  - Database/system methods consume data unsafely (sinks)
   - Sanitizer methods propagate taint (summaries)
 """
 
 from quickapi.request import Request
-from quickapi.response import Response, JSONResponse, HTMLResponse
+from quickapi.response import Response, JSONResponse
 from quickapi.database import DatabaseConnection
-from quickapi.templating import TemplateEngine
 from quickapi.security import SystemHelper, Sanitizer, TokenValidator
-from quickapi.utils import CacheManager
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -39,28 +39,7 @@ def search_users(request: Request, db: DatabaseConnection) -> JSONResponse:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 2. Reflected XSS via template rendering
-# ────────────────────────────────────────────────────────────────────
-
-def render_dashboard(request: Request, templates: TemplateEngine, cache: CacheManager) -> HTMLResponse:
-    """
-    VULNERABILITY: Cross-Site Scripting (XSS)
-
-    The `welcome_msg` query parameter is placed directly into an HTML
-    template without escaping.
-    CodeQL needs to know that `templates.render_string()` is an
-    html-injection sink.
-    """
-    welcome = request.get_query_param("welcome_msg", "Welcome!")
-    html = templates.render_string(
-        "<html><body><h1>{{greeting}}</h1></body></html>",
-        context={"greeting": welcome},
-    )
-    return HTMLResponse(html)
-
-
-# ────────────────────────────────────────────────────────────────────
-# 3. Command Injection
+# 2. Command Injection
 # ────────────────────────────────────────────────────────────────────
 
 def admin_diagnostics(request: Request) -> JSONResponse:
@@ -77,7 +56,7 @@ def admin_diagnostics(request: Request) -> JSONResponse:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 4. Path Traversal
+# 3. Path Traversal
 # ────────────────────────────────────────────────────────────────────
 
 def download_report(request: Request) -> Response:
@@ -94,7 +73,7 @@ def download_report(request: Request) -> Response:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 5. SQL Injection with taint flowing through a summary (Sanitizer)
+# 4. SQL Injection with taint flowing through a summary (Sanitizer)
 # ────────────────────────────────────────────────────────────────────
 
 def update_profile(request: Request, db: DatabaseConnection) -> JSONResponse:
@@ -122,7 +101,7 @@ def update_profile(request: Request, db: DatabaseConnection) -> JSONResponse:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 6. SQL Injection via token claims (source from TokenValidator)
+# 5. SQL Injection via token claims (source from TokenValidator)
 # ────────────────────────────────────────────────────────────────────
 
 def login(request: Request, db: DatabaseConnection, validator: TokenValidator) -> JSONResponse:
@@ -143,22 +122,3 @@ def login(request: Request, db: DatabaseConnection, validator: TokenValidator) -
     if results:
         return JSONResponse({"user": results[0]})
     return JSONResponse({"error": "not found"}, status_code=404)
-
-
-# ────────────────────────────────────────────────────────────────────
-# 7. Log Injection
-# ────────────────────────────────────────────────────────────────────
-
-def log_activity(request: Request) -> JSONResponse:
-    """
-    VULNERABILITY: Log Injection
-
-    User input flows directly into a log message without sanitization.
-    CodeQL needs to know that `SystemHelper.write_log()` is a
-    log-injection sink.
-    """
-    action = request.get_query_param("action")
-    user_agent = request.get_header("User-Agent")
-    message = f"User performed action: {action} from {user_agent}"
-    SystemHelper.write_log("/var/log/app.log", message)
-    return JSONResponse({"status": "logged"})
