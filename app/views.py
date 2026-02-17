@@ -4,18 +4,20 @@ View handlers for the demo application.
 Each function here contains an INTENTIONAL VULNERABILITY that CodeQL
 should detect — but only AFTER the QuickAPI framework has been modeled.
 
+There are 7 intentional vulnerabilities in this file.
+
 Without models, CodeQL does not know that:
   - Request methods return user-controlled data (sources)
   - Database/template/system methods consume data unsafely (sinks)
-  - Transformer/sanitizer methods propagate taint (summaries)
+  - Sanitizer methods propagate taint (summaries)
 """
 
 from quickapi.request import Request
 from quickapi.response import Response, JSONResponse, HTMLResponse
-from quickapi.database import DatabaseConnection, QueryBuilder
+from quickapi.database import DatabaseConnection
 from quickapi.templating import TemplateEngine
 from quickapi.security import SystemHelper, Sanitizer, TokenValidator
-from quickapi.utils import DataTransformer, CacheManager
+from quickapi.utils import CacheManager
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -37,33 +39,7 @@ def search_users(request: Request, db: DatabaseConnection) -> JSONResponse:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 2. SQL Injection via QueryBuilder.where_raw()
-# ────────────────────────────────────────────────────────────────────
-
-def get_user_profile(request: Request, db: DatabaseConnection, templates: TemplateEngine) -> HTMLResponse:
-    """
-    VULNERABILITY: SQL Injection via QueryBuilder
-
-    User input flows through QueryBuilder.where_raw() into a SQL query.
-    CodeQL needs a SUMMARY model for QueryBuilder.build() so taint flows
-    from where_raw() input to the built SQL string, and then into
-    db.execute_query().
-    """
-    user_id = request.get_query_param("user_id")
-    query = QueryBuilder("users").select("id", "username", "email").where_raw(f"id = {user_id}").build()
-    results = db.execute_query(query)
-
-    if results:
-        html = templates.render_string(
-            "<h1>Profile: {{username}}</h1><p>Email: {{email}}</p>",
-            context=results[0],
-        )
-        return HTMLResponse(html)
-    return HTMLResponse("<h1>User not found</h1>", status_code=404)
-
-
-# ────────────────────────────────────────────────────────────────────
-# 3. Reflected XSS via template rendering
+# 2. Reflected XSS via template rendering
 # ────────────────────────────────────────────────────────────────────
 
 def render_dashboard(request: Request, templates: TemplateEngine, cache: CacheManager) -> HTMLResponse:
@@ -84,7 +60,7 @@ def render_dashboard(request: Request, templates: TemplateEngine, cache: CacheMa
 
 
 # ────────────────────────────────────────────────────────────────────
-# 4. Command Injection
+# 3. Command Injection
 # ────────────────────────────────────────────────────────────────────
 
 def admin_diagnostics(request: Request) -> JSONResponse:
@@ -101,7 +77,7 @@ def admin_diagnostics(request: Request) -> JSONResponse:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 5. Path Traversal
+# 4. Path Traversal
 # ────────────────────────────────────────────────────────────────────
 
 def download_report(request: Request) -> Response:
@@ -118,7 +94,7 @@ def download_report(request: Request) -> Response:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 6. SQL Injection with taint flowing through a summary (Sanitizer)
+# 5. SQL Injection with taint flowing through a summary (Sanitizer)
 # ────────────────────────────────────────────────────────────────────
 
 def update_profile(request: Request, db: DatabaseConnection) -> JSONResponse:
@@ -146,7 +122,7 @@ def update_profile(request: Request, db: DatabaseConnection) -> JSONResponse:
 
 
 # ────────────────────────────────────────────────────────────────────
-# 7. SQL Injection via token claims (source from TokenValidator)
+# 6. SQL Injection via token claims (source from TokenValidator)
 # ────────────────────────────────────────────────────────────────────
 
 def login(request: Request, db: DatabaseConnection, validator: TokenValidator) -> JSONResponse:
@@ -170,30 +146,7 @@ def login(request: Request, db: DatabaseConnection, validator: TokenValidator) -
 
 
 # ────────────────────────────────────────────────────────────────────
-# 8. Command Injection with taint through DataTransformer
-# ────────────────────────────────────────────────────────────────────
-
-def run_report(request: Request) -> JSONResponse:
-    """
-    VULNERABILITY: Command Injection (taint through DataTransformer)
-
-    User input flows through `DataTransformer.format_string()` into
-    `SystemHelper.run_command()`.
-
-    CodeQL needs SUMMARY models for DataTransformer methods to track
-    taint through the transformation chain.
-    """
-    report_type = request.get_query_param("type")
-    cmd = DataTransformer.format_string(
-        "generate_report --type {report_type} --output /tmp/report.csv",
-        report_type=report_type,
-    )
-    output = SystemHelper.run_command(cmd)
-    return JSONResponse({"output": output})
-
-
-# ────────────────────────────────────────────────────────────────────
-# 9. Log Injection
+# 7. Log Injection
 # ────────────────────────────────────────────────────────────────────
 
 def log_activity(request: Request) -> JSONResponse:
