@@ -81,8 +81,6 @@ def search_users(request: Request, db: DatabaseConnection) -> JSONResponse:
     return JSONResponse({"users": results})
 ```
 
-**Ask the audience:** *"Can you see the SQL injection here?"* — everyone will.
-
 ---
 
 ### Part 2: Show that CodeQL finds nothing (3 min)
@@ -91,14 +89,13 @@ def search_users(request: Request, db: DatabaseConnection) -> JSONResponse:
 
 **In VS Code:**
 1. Open the CodeQL database (CodeQL sidebar → **From a folder** → select `codeql-db`)
-2. Run the `python-security-and-quality` query suite
+2. Run the default query suite
 
 **Or from the CLI:**
 ```bash
 codeql database analyze codeql-db \
   --format=sarif-latest \
   --output=baseline-results.sarif \
-  -- python-security-and-quality
 ```
 
 3. **Result: 0 security findings**
@@ -112,9 +109,9 @@ codeql database analyze codeql-db \
 
 ---
 
-### Part 3: Model a source + sink (10 min)
+### Part 3: Model sources, sinks, and summaries (15 min)
 
-> **Goal:** Show the Model Editor and make the first finding appear.
+> **Goal:** Show the Model Editor, make the first findings appear, and demonstrate how summaries bridge gaps in the taint chain.
 
 #### Open the Model Editor
 
@@ -147,39 +144,12 @@ Locate `execute_query` and set:
 
 > *"We're telling CodeQL: the first argument to this method is used in a SQL query — if it's tainted, that's SQL injection."*
 
-#### Save and re-run
 
-1. Click **Save all** in the model editor — models are saved to `.github/codeql/extensions/`
+> *"We've added two models — one source and one sink. Once we run the analysis, CodeQL will be able to trace the taint from `get_query_param()` through the f-string into `execute_query()`. That's the core idea. But first, let's add more models."*
 
-**In VS Code:**
-2. Set `"codeQL.runningQueries.useExtensionPacks": "all"` in your VS Code settings
-3. Re-run the `python-security-and-quality` query suite
+#### Model a summary to bridge a taint gap
 
-**Or from the CLI:**
-
-The Model Editor saves models to `.github/codeql/extensions/<database-name>-<language>/`.
-For our database named `codeql-db`, the auto-generated pack is `pack/codeql-db-python`.
-
-```bash
-codeql database analyze codeql-db \
-  --format=sarif-latest \
-  --output=after-modeling-results.sarif \
-  --additional-packs=.github/codeql/extensions/ \
-  --model-packs=pack/codeql-db-python \
-  -- python-security-and-quality
-```
-
-**Result: SQL injection in `search_users` is now detected!**
-
-> *"We added two models — one source and one sink — and CodeQL can now trace the taint from `get_query_param()` through the f-string into `execute_query()`. That's the core idea."*
-
----
-
-### Part 4: Model a summary (5 min)
-
-> **Goal:** Show that some vulnerabilities need summaries to bridge a gap in the taint chain.
-
-Open `app/views.py` and show the `update_profile` function:
+Now open `app/views.py` and show the `update_profile` function:
 
 ```python
 def update_profile(request: Request, db: DatabaseConnection) -> JSONResponse:
@@ -206,13 +176,36 @@ def update_profile(request: Request, db: DatabaseConnection) -> JSONResponse:
 
 > *"We're telling CodeQL: whatever goes into `strip_tags` affects what comes out — taint flows through."*
 
-Also model `execute_update` as a sink (same as `execute_query` — Kind: `sql-injection`), then save and re-run (same CLI command as Part 3).
+Also model `execute_update` as a sink (same as `execute_query` — Kind: `sql-injection`)
 
-**Result: The SQL injection in `update_profile` is now detected!**
+#### Save your models
+
+Click **Save all** in the model editor — models are saved to `.github/codeql/extensions/`.
+
+#### Run the analysis
+
+Once all models are saved, re-run the analysis to see the results.
+
+**From the CLI:**
+
+The Model Editor saves models to `.github/codeql/extensions/<database-name>-<language>/`.
+For our database named `codeql-db`, the auto-generated pack is `pack/codeql-db-python`.
+
+```bash
+codeql database analyze codeql-db \
+  --format=sarif-latest \
+  --output=after-modeling-results.sarif \
+  --additional-packs=.github/codeql/extensions/ \
+  --model-packs=pack/codeql-db-python \
+  --rerun
+```
+
+**Result: All 9 vulnerabilities are now detected!**
+
 
 ---
 
-### Part 5: Model the rest (optional hands-on, 10 min)
+### Part 4: Model the rest and run analysis (optional hands-on, 15 min)
 
 If time allows, let the audience model the remaining APIs themselves. Here's the complete list:
 
@@ -265,6 +258,30 @@ The complete model file is at:
 ```
 .github/codeql/extensions/model-editor-demo-python/models/quickapi-complete-reference.model.yml
 ```
+
+#### Save and run the analysis
+
+Once all models are saved, re-run the analysis to see the results.
+
+**In VS Code:**
+1. Set `"codeQL.runningQueries.useExtensionPacks": "all"` in your VS Code settings
+2. Re-run the `python-security-and-quality` query suite
+
+**Or from the CLI:**
+
+The Model Editor saves models to `.github/codeql/extensions/<database-name>-<language>/`.
+For our database named `codeql-db`, the auto-generated pack is `pack/codeql-db-python`.
+
+```bash
+codeql database analyze codeql-db \
+  --format=sarif-latest \
+  --output=after-modeling-results.sarif \
+  --additional-packs=.github/codeql/extensions/ \
+  --model-packs=pack/codeql-db-python \
+  -- python-security-and-quality
+```
+
+**Result: All 9 vulnerabilities are now detected!**
 
 ---
 
