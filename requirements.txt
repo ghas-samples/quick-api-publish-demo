@@ -1,0 +1,2 @@
+# No external dependencies required — quickapi is a local package
+# and the demo uses only Python standard library modules.
